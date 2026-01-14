@@ -1,0 +1,51 @@
+{
+    "name": "threlte-mcp",
+    "version": "1.0.0",
+    "description": "MCP server for AI-powered Three.js/Threlte scene inspection and manipulation",
+    "keywords": [
+        "mcp",
+        "model-context-protocol",
+        "threlte",
+        "three.js",
+        "svelte",
+        "ai",
+        "scene-inspector",
+        "debugging"
+    ],
+    "author": "Raul Contreras",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/RaulContreras123/threlte-mcp.git"
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "bin": {
+        "threlte-mcp": "dist/index.js"
+    },
+    "files": [
+        "dist",
+        "client",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsx src/index.ts",
+        "prepublishOnly": "npm run build"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "@types/ws": "^8.5.0",
+        "tsx": "^4.0.0",
+        "typescript": "^5.0.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
