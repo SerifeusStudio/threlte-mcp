@@ -24,6 +24,9 @@ An MCP (Model Context Protocol) server that enables AI agents to inspect and man
 - 🎯 **Object Manipulation** - Move, rotate, scale, show/hide objects
 - 🎨 **Materials & Assets** - Apply materials, load GLTF models, change environment
 - 🧪 **Asset Analysis** - Inspect GLTF structure and validate performance
+- dYZ+ **Asset Optimization** - Simplify meshes, compress textures, prune unused data
+- dY"? **Svelte Export** - Generate Threlte/Svelte components from GLTF
+- dYZ? **Camera Presets** - Save, load, and animate camera views
 - ⚡ **Physics Control** - Add physics bodies, apply impulses, set gravity
 - 🎭 **Vibe Presets** - Apply mood presets (cozy, spooky, neon, etc.)
 
@@ -179,6 +182,11 @@ Once both the MCP server and your Threlte app are running, AI agents can:
 | Tool | Description |
 |------|-------------|
 | `set_camera_position` | Set camera position, lookAt, and lens settings |
+| `save_camera_preset` | Save current camera view as a preset |
+| `load_camera_preset` | Load a saved camera view |
+| `list_camera_presets` | List all saved camera presets |
+| `delete_camera_preset` | Delete a saved camera preset |
+| `animate_camera_presets` | Animate through a sequence of presets |
 
 ### Hierarchy Management
 | Tool | Description |
@@ -204,6 +212,8 @@ Once both the MCP server and your Threlte app are running, AI agents can:
 |------|-------------|
 | `analyze_gltf` | Inspect GLTF/GLB structure |
 | `validate_asset` | Validate GLTF/GLB for issues |
+| `optimize_gltf` | Optimize GLTF/GLB assets |
+| `export_to_svelte` | Generate Threlte/Svelte component |
 
 ### Materials & Assets
 | Tool | Description |

@@ -21,8 +21,9 @@ import {
     type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { BridgeServer } from './bridge-server.js';
-import { analyzeGltf, validateGltf } from './gltf-tools.js';
+import { analyzeGltf, optimizeGltf, validateGltf } from './gltf-tools.js';
 import { cameraPresets, type CameraPreset } from './camera-presets.js';
+import { exportToSvelte } from './svelte-generator.js';
 
 // Tool definitions
 const TOOLS: Tool[] = [
@@ -131,6 +132,20 @@ const TOOLS: Tool[] = [
                 name: { type: 'string', description: 'Preset name to delete' }
             },
             required: ['name']
+        }
+    },
+    {
+        name: 'animate_camera_presets',
+        description: 'Animate the camera through a sequence of saved presets',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                presets: { type: 'array', items: { type: 'string' }, description: 'Ordered list of preset names' },
+                duration: { type: 'number', description: 'Transition duration per preset in ms (default: 1000)' },
+                hold: { type: 'number', description: 'Hold time per preset in ms (default: 0)' },
+                repeat: { type: 'number', description: 'Number of times to repeat the sequence (default: 1)' }
+            },
+            required: ['presets']
         }
     },
 
@@ -309,6 +324,63 @@ const TOOLS: Tool[] = [
         }
     },
     {
+        name: 'optimize_gltf',
+        description: 'Optimize a GLTF/GLB file with mesh simplification and texture compression',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                path: { type: 'string', description: 'Local path or file:// URL to a .gltf/.glb file' },
+                output: { type: 'string', description: 'Output path for optimized file' },
+                options: {
+                    type: 'object',
+                    properties: {
+                        dedup: { type: 'boolean', description: 'Remove duplicate accessors/materials (default: true)' },
+                        prune: { type: 'boolean', description: 'Remove unused data (default: true)' },
+                        weld: { type: 'boolean', description: 'Weld shared vertices (default: true)' },
+                        quantize: { type: 'boolean', description: 'Quantize vertex data (default: true)' },
+                        simplify: {
+                            type: 'object',
+                            properties: {
+                                ratio: { type: 'number', description: 'Target ratio (0-1) of vertices to keep' },
+                                error: { type: 'number', description: 'Maximum simplification error' },
+                                lockBorder: { type: 'boolean', description: 'Preserve mesh borders' }
+                            }
+                        },
+                        textures: {
+                            type: 'object',
+                            properties: {
+                                format: { type: 'string', description: 'Target texture format: jpeg, png, webp, avif' },
+                                resize: {
+                                    description: 'Resize textures [width,height] or power-of-two preset',
+                                    type: ['array', 'string'],
+                                    items: { type: 'number' }
+                                },
+                                quality: { type: 'number', description: 'Compression quality (1-100)' },
+                                useSharp: { type: 'boolean', description: 'Use sharp encoder when available' }
+                            }
+                        }
+                    }
+                }
+            },
+            required: ['path']
+        }
+    },
+    {
+        name: 'export_to_svelte',
+        description: 'Generate a Threlte/Svelte component from a GLTF/GLB file',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                path: { type: 'string', description: 'Local path or file:// URL to a .gltf/.glb file' },
+                output: { type: 'string', description: 'Output .svelte file path (optional)' },
+                componentName: { type: 'string', description: 'Component name override' },
+                assetUrl: { type: 'string', description: 'Asset URL to load in the generated component' },
+                mode: { type: 'string', description: 'Export mode: nodes or primitive' }
+            },
+            required: ['path']
+        }
+    },
+    {
         name: 'load_asset',
         description: 'Load a GLTF/GLB model into the scene',
         inputSchema: {
@@ -374,13 +446,23 @@ const TOOLS: Tool[] = [
     }
 ];
 
-const LOCAL_ONLY_TOOLS = new Set(['get_bridge_status', 'analyze_gltf', 'validate_asset']);
+const LOCAL_ONLY_TOOLS = new Set([
+    'get_bridge_status',
+    'analyze_gltf',
+    'validate_asset',
+    'optimize_gltf',
+    'export_to_svelte',
+    'list_camera_presets',
+    'delete_camera_preset',
+]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Create MCP server
 const server = new Server(
     {
         name: 'threlte-mcp',
-        version: '1.1.0',
+        version: '1.3.0',
     },
     {
         capabilities: {
@@ -581,6 +663,67 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }
             }
 
+            case 'animate_camera_presets': {
+                const { presets, duration, hold, repeat } = args as {
+                    presets: string[];
+                    duration?: number;
+                    hold?: number;
+                    repeat?: number;
+                };
+
+                if (!Array.isArray(presets) || presets.length < 2) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: 'Error: Provide at least two preset names to animate.'
+                        }],
+                        isError: true,
+                    };
+                }
+
+                const missing = presets.filter((presetName) => !cameraPresets.loadPreset(presetName));
+                if (missing.length > 0) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `Error: Missing presets: ${missing.join(', ')}`
+                        }],
+                        isError: true,
+                    };
+                }
+
+                const sequence = presets.map((presetName) => cameraPresets.loadPreset(presetName)!);
+                const stepDuration = typeof duration === 'number' && Number.isFinite(duration) ? duration : 1000;
+                const holdDuration = typeof hold === 'number' && Number.isFinite(hold) ? hold : 0;
+                const repeats = typeof repeat === 'number' && Number.isFinite(repeat) ? Math.max(1, Math.floor(repeat)) : 1;
+
+                for (let loop = 0; loop < repeats; loop += 1) {
+                    for (const preset of sequence) {
+                        await bridge.sendCommand({
+                            action: 'setCameraPosition',
+                            position: preset.position,
+                            lookAt: preset.lookAt,
+                            fov: preset.fov,
+                            near: preset.near,
+                            far: preset.far,
+                            animate: true,
+                            duration: stepDuration,
+                        });
+
+                        if (holdDuration > 0) {
+                            await sleep(holdDuration);
+                        }
+                    }
+                }
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `OK. Animated camera through ${presets.length} preset(s) x${repeats}.`
+                    }]
+                };
+            }
+
             case 'move_object': {
                 const { name: objName, position } = args as { name: string; position: [number, number, number] };
                 const result = await bridge.sendCommand({ action: 'moveSceneObject', path: objName, position });
@@ -687,6 +830,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             case 'validate_asset': {
                 const { path, limits } = args as { path: string; limits?: Record<string, number> };
                 const result = await validateGltf(path, limits);
+                return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+            }
+
+            case 'optimize_gltf': {
+                const { path, output, options } = args as {
+                    path: string;
+                    output?: string;
+                    options?: Record<string, unknown>;
+                };
+                const result = await optimizeGltf(path, {
+                    outputPath: output,
+                    dedup: options?.dedup as boolean | undefined,
+                    prune: options?.prune as boolean | undefined,
+                    weld: options?.weld as boolean | undefined,
+                    quantize: options?.quantize as boolean | undefined,
+                    simplify: options?.simplify as {
+                        ratio?: number;
+                        error?: number;
+                        lockBorder?: boolean;
+                    } | undefined,
+                    textures: options?.textures as {
+                        format?: 'jpeg' | 'png' | 'webp' | 'avif';
+                        resize?: [number, number] | 'nearest-pot' | 'ceil-pot' | 'floor-pot';
+                        quality?: number;
+                        useSharp?: boolean;
+                    } | undefined,
+                });
+                return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+            }
+
+            case 'export_to_svelte': {
+                const { path, output, componentName, assetUrl, mode } = args as {
+                    path: string;
+                    output?: string;
+                    componentName?: string;
+                    assetUrl?: string;
+                    mode?: 'nodes' | 'primitive';
+                };
+                const result = await exportToSvelte(path, {
+                    outputPath: output,
+                    componentName,
+                    assetUrl,
+                    mode,
+                });
                 return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
             }
 

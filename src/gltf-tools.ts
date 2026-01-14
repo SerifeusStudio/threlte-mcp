@@ -1,18 +1,11 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import {
-    NodeIO,
     type Document,
     type Node as GltfNode,
     type Primitive,
     type Scene,
 } from '@gltf-transform/core';
-import { inspect } from '@gltf-transform/functions';
-
-const io = new NodeIO();
-
-const SUPPORTED_EXTENSIONS = new Set(['.gltf', '.glb']);
+import { dedup, inspect, prune, quantize, simplify, textureCompress, weld } from '@gltf-transform/functions';
+import { loadGltfDocument, resolveOutputPath, writeGltfDocument } from './gltf-io.js';
 const KNOWN_ATTRIBUTES = [
     'POSITION',
     'NORMAL',
@@ -123,6 +116,46 @@ export interface GltfValidationReport {
     inspection: unknown | null;
 }
 
+export interface GltfOptimizationSimplifyOptions {
+    ratio?: number;
+    error?: number;
+    lockBorder?: boolean;
+}
+
+export interface GltfOptimizationTextureOptions {
+    format?: 'jpeg' | 'png' | 'webp' | 'avif';
+    resize?: [number, number] | 'nearest-pot' | 'ceil-pot' | 'floor-pot';
+    quality?: number;
+    useSharp?: boolean;
+}
+
+export interface GltfOptimizationOptions {
+    outputPath?: string;
+    dedup?: boolean;
+    prune?: boolean;
+    weld?: boolean;
+    quantize?: boolean;
+    simplify?: GltfOptimizationSimplifyOptions;
+    textures?: GltfOptimizationTextureOptions;
+}
+
+export interface GltfOptimizationReport {
+    source: {
+        path: string;
+        bytes: number;
+    };
+    output: {
+        path: string;
+        bytes: number;
+        bytesSaved: number;
+        percentSaved: number;
+    };
+    actions: string[];
+    warnings: string[];
+    summary: GltfAnalysisSummary;
+    inspection: unknown | null;
+}
+
 const DEFAULT_LIMITS: GltfValidationLimits = {
     maxDrawCalls: 200,
     maxTriangles: 200_000,
@@ -137,49 +170,6 @@ function normalizeName(name: string | null | undefined): string | null {
     return trimmed ? trimmed : null;
 }
 
-function resolveAssetPath(input: string): string {
-    if (/^https?:\/\//i.test(input)) {
-        throw new Error('Remote URLs are not supported. Provide a local file path or file:// URL.');
-    }
-
-    if (input.startsWith('file://')) {
-        return fileURLToPath(input);
-    }
-
-    return path.normalize(input);
-}
-
-async function loadDocument(assetPath: string) {
-    if (!assetPath || typeof assetPath !== 'string') {
-        throw new Error('path is required');
-    }
-
-    const resolvedPath = resolveAssetPath(assetPath);
-    const extension = path.extname(resolvedPath).toLowerCase();
-    if (!SUPPORTED_EXTENSIONS.has(extension)) {
-        throw new Error(`Unsupported extension "${extension}". Expected .gltf or .glb.`);
-    }
-
-    let stat: Awaited<ReturnType<typeof fs.stat>>;
-    try {
-        stat = await fs.stat(resolvedPath);
-    } catch (error) {
-        throw new Error(`File not found: ${resolvedPath}`);
-    }
-
-    if (!stat.isFile()) {
-        throw new Error(`Not a file: ${resolvedPath}`);
-    }
-
-    try {
-        const document = await io.read(resolvedPath);
-        return { document, resolvedPath, bytes: stat.size };
-    } catch (error) {
-        throw new Error(
-            `Failed to read glTF: ${error instanceof Error ? error.message : String(error)}`
-        );
-    }
-}
 
 function countSceneNodes(scene: Scene): number {
     let count = 0;
@@ -370,7 +360,7 @@ async function buildAnalysis(document: Document, resolvedPath: string, bytes: nu
 }
 
 export async function analyzeGltf(assetPath: string): Promise<GltfAnalysis> {
-    const { document, resolvedPath, bytes } = await loadDocument(assetPath);
+    const { document, resolvedPath, bytes } = await loadGltfDocument(assetPath);
     return (await buildAnalysis(document, resolvedPath, bytes)).analysis;
 }
 
@@ -378,7 +368,7 @@ export async function validateGltf(
     assetPath: string,
     limits?: Partial<GltfValidationLimits>
 ): Promise<GltfValidationReport> {
-    const { document, resolvedPath, bytes } = await loadDocument(assetPath);
+    const { document, resolvedPath, bytes } = await loadGltfDocument(assetPath);
     const { analysis, missingPosition } = await buildAnalysis(document, resolvedPath, bytes);
     const normalizedLimits = normalizeLimits(limits);
 
@@ -446,6 +436,155 @@ export async function validateGltf(
         issues: {
             missingPosition,
         },
+        inspection: analysis.inspection,
+    };
+}
+
+async function loadMeshoptSimplifier(warnings: string[]): Promise<unknown | null> {
+    try {
+        const module = await import('meshoptimizer');
+        const simplifier = module.MeshoptSimplifier ?? module.default?.MeshoptSimplifier;
+        if (!simplifier) {
+            warnings.push('Meshoptimizer simplifier not available. Skipping simplify.');
+            return null;
+        }
+        if ('ready' in simplifier && typeof simplifier.ready?.then === 'function') {
+            await simplifier.ready;
+        }
+        return simplifier;
+    } catch (error) {
+        warnings.push(
+            `Meshoptimizer not available. Skipping simplify. (${error instanceof Error ? error.message : String(error)})`
+        );
+        return null;
+    }
+}
+
+async function loadSharpEncoder(warnings: string[]): Promise<unknown | null> {
+    try {
+        const module = await import('sharp');
+        return module.default ?? module;
+    } catch (error) {
+        warnings.push(
+            `Sharp encoder not available. Texture compression will use fallback. (${error instanceof Error ? error.message : String(error)})`
+        );
+        return null;
+    }
+}
+
+export async function optimizeGltf(
+    assetPath: string,
+    options: GltfOptimizationOptions = {}
+): Promise<GltfOptimizationReport> {
+    const { document, resolvedPath, bytes } = await loadGltfDocument(assetPath);
+    const outputPath = resolveOutputPath(resolvedPath, options.outputPath);
+
+    const actions: string[] = [];
+    const warnings: string[] = [];
+
+    const transforms = [];
+
+    const dedupEnabled = options.dedup ?? true;
+    if (dedupEnabled) {
+        transforms.push(dedup());
+        actions.push('dedup');
+    }
+
+    const weldEnabled = options.weld ?? true;
+    if (weldEnabled) {
+        transforms.push(weld());
+        actions.push('weld');
+    }
+
+    const quantizeEnabled = options.quantize ?? true;
+    if (quantizeEnabled) {
+        transforms.push(quantize());
+        actions.push('quantize');
+    }
+
+    if (options.simplify) {
+        const ratio = options.simplify.ratio ?? 0.75;
+        const error = options.simplify.error ?? 0.001;
+        const lockBorder = options.simplify.lockBorder ?? false;
+
+        if (ratio <= 0 || ratio >= 1) {
+            warnings.push('Simplify ratio must be between 0 and 1. Skipping simplify.');
+        } else {
+            const simplifier = await loadMeshoptSimplifier(warnings);
+            if (simplifier) {
+                transforms.push(simplify({ simplifier, ratio, error, lockBorder }));
+                actions.push(`simplify(ratio=${ratio},error=${error})`);
+            }
+        }
+    }
+
+    const pruneEnabled = options.prune ?? true;
+    if (pruneEnabled) {
+        transforms.push(prune());
+        actions.push('prune');
+    }
+
+    const textures = options.textures;
+    if (textures) {
+        const root = document.getRoot();
+        if (root.listTextures().length === 0) {
+            warnings.push('No textures found to compress.');
+        } else {
+            let resizeOption: GltfOptimizationTextureOptions['resize'];
+            if (Array.isArray(textures.resize)) {
+                if (
+                    textures.resize.length === 2 &&
+                    textures.resize.every((value) => typeof value === 'number' && Number.isFinite(value))
+                ) {
+                    resizeOption = [textures.resize[0], textures.resize[1]];
+                } else {
+                    warnings.push('Texture resize must be a [width, height] array.');
+                }
+            } else if (typeof textures.resize === 'string') {
+                resizeOption = textures.resize;
+            }
+
+            let encoder: unknown | undefined;
+            if (textures.useSharp) {
+                encoder = await loadSharpEncoder(warnings) ?? undefined;
+            }
+
+            transforms.push(
+                textureCompress({
+                    encoder,
+                    targetFormat: textures.format,
+                    resize: resizeOption,
+                    quality: textures.quality,
+                })
+            );
+            actions.push('textureCompress');
+        }
+    }
+
+    if (transforms.length > 0) {
+        await document.transform(...transforms);
+    }
+
+    const outputBytes = await writeGltfDocument(document, outputPath);
+    const bytesSaved = Math.max(0, bytes - outputBytes);
+    const percentSaved = bytes > 0 ? Math.round((bytesSaved / bytes) * 10000) / 100 : 0;
+
+    const { analysis } = await buildAnalysis(document, outputPath, outputBytes);
+
+    return {
+        source: {
+            path: resolvedPath,
+            bytes,
+        },
+        output: {
+            path: outputPath,
+            bytes: outputBytes,
+            bytesSaved,
+            percentSaved,
+        },
+        actions,
+        warnings,
+        summary: analysis.summary,
         inspection: analysis.inspection,
     };
 }
