@@ -21,6 +21,7 @@ import {
     type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { BridgeServer } from './bridge-server.js';
+import { analyzeGltf, validateGltf } from './gltf-tools.js';
 
 // Tool definitions
 const TOOLS: Tool[] = [
@@ -67,6 +68,24 @@ const TOOLS: Tool[] = [
             properties: {
                 filter: { type: 'string', description: 'Optional name filter' }
             }
+        }
+    },
+
+    // Camera Control
+    {
+        name: 'set_camera_position',
+        description: 'Set camera position with optional lookAt target and lens settings',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'Optional camera object name' },
+                position: { type: 'array', items: { type: 'number' }, description: '[x, y, z] position' },
+                lookAt: { type: 'array', items: { type: 'number' }, description: '[x, y, z] look target' },
+                fov: { type: 'number', description: 'Field of view in degrees (PerspectiveCamera)' },
+                near: { type: 'number', description: 'Near clipping plane' },
+                far: { type: 'number', description: 'Far clipping plane' }
+            },
+            required: ['position']
         }
     },
 
@@ -212,6 +231,39 @@ const TOOLS: Tool[] = [
 
     // Materials & Assets
     {
+        name: 'analyze_gltf',
+        description: 'Analyze a GLTF/GLB file for meshes, materials, textures, and animations',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                path: { type: 'string', description: 'Local path or file:// URL to a .gltf/.glb file' }
+            },
+            required: ['path']
+        }
+    },
+    {
+        name: 'validate_asset',
+        description: 'Validate a GLTF/GLB file for structural and performance issues',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                path: { type: 'string', description: 'Local path or file:// URL to a .gltf/.glb file' },
+                limits: {
+                    type: 'object',
+                    properties: {
+                        maxDrawCalls: { type: 'number', description: 'Max draw calls before warning' },
+                        maxTriangles: { type: 'number', description: 'Max triangles before warning' },
+                        maxVertices: { type: 'number', description: 'Max vertices before warning' },
+                        maxTextures: { type: 'number', description: 'Max textures before warning' },
+                        maxMaterials: { type: 'number', description: 'Max materials before warning' },
+                        maxAnimations: { type: 'number', description: 'Max animations before warning' }
+                    }
+                }
+            },
+            required: ['path']
+        }
+    },
+    {
         name: 'load_asset',
         description: 'Load a GLTF/GLB model into the scene',
         inputSchema: {
@@ -277,11 +329,13 @@ const TOOLS: Tool[] = [
     }
 ];
 
+const LOCAL_ONLY_TOOLS = new Set(['get_bridge_status', 'analyze_gltf', 'validate_asset']);
+
 // Create MCP server
 const server = new Server(
     {
         name: 'threlte-mcp',
-        version: '1.0.0',
+        version: '1.1.0',
     },
     {
         capabilities: {
@@ -302,7 +356,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
-    if (!bridge.isConnected() && name !== 'get_bridge_status') {
+    if (!bridge.isConnected() && !LOCAL_ONLY_TOOLS.has(name)) {
         try {
             await bridge.connect();
         } catch {
@@ -342,6 +396,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 const { name: objName } = args as { name: string };
                 const result = await bridge.sendCommand({ action: 'findObjects', name: objName });
                 return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+            }
+
+            case 'set_camera_position': {
+                const { name: cameraName, position, lookAt, fov, near, far } = args as {
+                    name?: string;
+                    position: [number, number, number];
+                    lookAt?: [number, number, number];
+                    fov?: number;
+                    near?: number;
+                    far?: number;
+                };
+                await bridge.sendCommand({
+                    action: 'setCameraPosition',
+                    name: cameraName,
+                    position,
+                    lookAt,
+                    fov,
+                    near,
+                    far,
+                });
+                const target = cameraName ? `camera "${cameraName}"` : 'camera';
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `OK. Set ${target} position to [${position.join(', ')}]`
+                    }]
+                };
             }
 
             case 'move_object': {
@@ -439,6 +520,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 const { vector } = args as { vector: [number, number, number] };
                 await bridge.sendCommand({ action: 'setGravity', vector });
                 return { content: [{ type: 'text', text: `✅ Set global gravity to [${vector.join(', ')}]` }] };
+            }
+
+            case 'analyze_gltf': {
+                const { path } = args as { path: string };
+                const result = await analyzeGltf(path);
+                return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+            }
+
+            case 'validate_asset': {
+                const { path, limits } = args as { path: string; limits?: Record<string, number> };
+                const result = await validateGltf(path, limits);
+                return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
             }
 
             case 'load_asset': {

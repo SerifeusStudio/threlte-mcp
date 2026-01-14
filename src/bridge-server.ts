@@ -16,6 +16,10 @@ export interface MCPCommand {
     position?: number[];
     rotation?: number[];
     scale?: number[];
+    lookAt?: number[];
+    fov?: number;
+    near?: number;
+    far?: number;
     filter?: {
         nameContains?: string;
         type?: string;

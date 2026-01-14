@@ -23,6 +23,7 @@ An MCP (Model Context Protocol) server that enables AI agents to inspect and man
 - 🔍 **Scene Inspection** - View the full 3D scene hierarchy, find objects by name/type
 - 🎯 **Object Manipulation** - Move, rotate, scale, show/hide objects
 - 🎨 **Materials & Assets** - Apply materials, load GLTF models, change environment
+- 🧪 **Asset Analysis** - Inspect GLTF structure and validate performance
 - ⚡ **Physics Control** - Add physics bodies, apply impulses, set gravity
 - 🎭 **Vibe Presets** - Apply mood presets (cozy, spooky, neon, etc.)
 
@@ -174,6 +175,11 @@ Once both the MCP server and your Threlte app are running, AI agents can:
 | `get_object_position` | Get position of specific object |
 | `log_positions` | Export positions for code |
 
+### Camera
+| Tool | Description |
+|------|-------------|
+| `set_camera_position` | Set camera position, lookAt, and lens settings |
+
 ### Hierarchy Management
 | Tool | Description |
 |------|-------------|
@@ -192,6 +198,12 @@ Once both the MCP server and your Threlte app are running, AI agents can:
 | `remove_physics` | Remove physics body |
 | `apply_impulse` | Apply force |
 | `set_gravity` | Set global gravity |
+
+### Asset Processing
+| Tool | Description |
+|------|-------------|
+| `analyze_gltf` | Inspect GLTF/GLB structure |
+| `validate_asset` | Validate GLTF/GLB for issues |
 
 ### Materials & Assets
 | Tool | Description |
