@@ -1,6 +1,22 @@
 # Threlte MCP
 
+[![npm version](https://img.shields.io/npm/v/threlte-mcp.svg)](https://www.npmjs.com/package/threlte-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-blue.svg)](https://modelcontextprotocol.io/)
+
 An MCP (Model Context Protocol) server that enables AI agents to inspect and manipulate Three.js/Threlte scenes in real-time.
+
+## ✅ Compatible With
+
+- **Claude Desktop** - Anthropic's desktop app
+- **Antigravity** - Google's AI IDE
+- **Claude Code** - CLI tool for Claude
+- **Cursor** - AI-powered code editor
+- **Windsurf** - Codeium's AI IDE
+- **Continue** - VS Code AI extension
+- **Any MCP-compatible client**
+
+[See detailed compatibility guide →](./COMPATIBILITY.md)
 
 ## Features
 

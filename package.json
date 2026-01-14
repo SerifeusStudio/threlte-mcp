@@ -33,6 +33,7 @@
     "scripts": {
         "build": "tsc",
         "dev": "tsx src/index.ts",
+        "test:compatibility": "node test-mcp.js",
         "prepublishOnly": "npm run build"
     },
     "dependencies": {
