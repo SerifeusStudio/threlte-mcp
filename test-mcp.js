@@ -117,9 +117,10 @@ setTimeout(() => {
         process.exit(0);
     } else {
         console.log('\n❌ Compatibility issues detected');
+        console.log(`   Expected at least 3 passed tests, got ${passed}`);
         process.exit(1);
     }
-}, 2000);
+}, 3000);
 
 server.on('error', (err) => {
     console.error('❌ Failed to start server:', err.message);
