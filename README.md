@@ -49,13 +49,47 @@ npm install threlte-mcp
 
 ### 2. Add MCPBridge to your Threlte app
 
-Create a component in your Svelte/Threlte project:
+**Option A: Global Singleton (Recommended for production)**
+
+Create `src/lib/utils/MCPBridge.ts` - [See full implementation](./client/MCPBridge.example.ts)
+
+```typescript
+// Simplified singleton pattern
+let globalBridge: MCPBridge | null = null;
+
+export function getMCPBridge(scene?: THREE.Scene): MCPBridge | null {
+  if (scene && !globalBridge) {
+    globalBridge = new MCPBridge(scene);
+  } else if (scene && globalBridge) {
+    globalBridge.setScene(scene);
+  }
+  return globalBridge;
+}
+```
+
+Then in any scene:
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { useThrelte } from '@threlte/core';
+  import { getMCPBridge } from '$lib/utils/MCPBridge';
+
+  const { scene } = useThrelte();
+
+  onMount(() => {
+    getMCPBridge(scene); // Automatically connects to MCP
+  });
+</script>
+```
+
+**Option B: Per-Scene (Simple for prototyping)**
 
 ```svelte
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { useThrelte } from '@threlte/core';
-  
+
   const { scene } = useThrelte();
   let ws: WebSocket | null = null;
   
