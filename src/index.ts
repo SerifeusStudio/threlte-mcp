@@ -22,6 +22,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { BridgeServer } from './bridge-server.js';
 import { analyzeGltf, validateGltf } from './gltf-tools.js';
+import { cameraPresets, type CameraPreset } from './camera-presets.js';
 
 // Tool definitions
 const TOOLS: Tool[] = [
@@ -86,6 +87,50 @@ const TOOLS: Tool[] = [
                 far: { type: 'number', description: 'Far clipping plane' }
             },
             required: ['position']
+        }
+    },
+    {
+        name: 'save_camera_preset',
+        description: 'Save current camera position as a named preset for quick recall',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'Preset name (e.g., "overhead", "closeup")' },
+                description: { type: 'string', description: 'Optional description of this view' }
+            },
+            required: ['name']
+        }
+    },
+    {
+        name: 'load_camera_preset',
+        description: 'Load a saved camera preset and optionally animate to it',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'Preset name to load' },
+                animate: { type: 'boolean', description: 'Smoothly animate to position (default: false)' },
+                duration: { type: 'number', description: 'Animation duration in ms (default: 1000)' }
+            },
+            required: ['name']
+        }
+    },
+    {
+        name: 'list_camera_presets',
+        description: 'List all available camera presets',
+        inputSchema: {
+            type: 'object',
+            properties: {}
+        }
+    },
+    {
+        name: 'delete_camera_preset',
+        description: 'Delete a saved camera preset',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                name: { type: 'string', description: 'Preset name to delete' }
+            },
+            required: ['name']
         }
     },
 
@@ -423,6 +468,117 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                         text: `OK. Set ${target} position to [${position.join(', ')}]`
                     }]
                 };
+            }
+
+            case 'save_camera_preset': {
+                const { name: presetName, description } = args as { name: string; description?: string };
+
+                // Get current camera position from scene
+                const currentCamera = await bridge.sendCommand({ action: 'getCameraState' }) as {
+                    position: [number, number, number];
+                    lookAt?: [number, number, number];
+                    fov?: number;
+                    near?: number;
+                    far?: number;
+                };
+
+                const preset: CameraPreset = {
+                    name: presetName,
+                    position: currentCamera.position,
+                    lookAt: currentCamera.lookAt,
+                    fov: currentCamera.fov,
+                    near: currentCamera.near,
+                    far: currentCamera.far,
+                    description
+                };
+
+                cameraPresets.savePreset(preset);
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `OK. Saved camera preset "${presetName}"`
+                    }]
+                };
+            }
+
+            case 'load_camera_preset': {
+                const { name: presetName, animate, duration } = args as {
+                    name: string;
+                    animate?: boolean;
+                    duration?: number;
+                };
+
+                const preset = cameraPresets.loadPreset(presetName);
+                if (!preset) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `Error: Preset "${presetName}" not found`
+                        }]
+                    };
+                }
+
+                await bridge.sendCommand({
+                    action: 'setCameraPosition',
+                    position: preset.position,
+                    lookAt: preset.lookAt,
+                    fov: preset.fov,
+                    near: preset.near,
+                    far: preset.far,
+                    animate: animate || false,
+                    duration: duration || 1000
+                });
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `OK. Loaded camera preset "${presetName}"${animate ? ' with animation' : ''}`
+                    }]
+                };
+            }
+
+            case 'list_camera_presets': {
+                const presets = cameraPresets.listPresets();
+                if (presets.length === 0) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: 'No camera presets saved yet. Default presets: overhead, front, side, perspective, closeup, wideangle'
+                        }]
+                    };
+                }
+
+                const list = presets.map(p =>
+                    `• ${p.name}: [${p.position.join(', ')}]${p.description ? ` - ${p.description}` : ''}`
+                ).join('\n');
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `Camera Presets:\n${list}`
+                    }]
+                };
+            }
+
+            case 'delete_camera_preset': {
+                const { name: presetName } = args as { name: string };
+                const deleted = cameraPresets.deletePreset(presetName);
+
+                if (deleted) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `OK. Deleted preset "${presetName}"`
+                        }]
+                    };
+                } else {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: `Error: Preset "${presetName}" not found`
+                        }]
+                    };
+                }
             }
 
             case 'move_object': {

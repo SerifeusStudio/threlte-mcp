@@ -62,6 +62,8 @@ export interface MCPCommand {
     targets?: string;
     properties?: string[];
     intensity?: number;
+    animate?: boolean;
+    duration?: number;
 }
 
 interface PendingRequest {
