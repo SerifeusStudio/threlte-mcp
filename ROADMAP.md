@@ -1,15 +1,23 @@
 # Threlte MCP Enhancement Roadmap
 
-## Current State (v1.0.0)
+## Current State (v1.3.0) 🎉
 
 ### ✅ Implemented Features
 - **Scene Inspection** (4 tools) - Query scene hierarchy, find objects
+- **Camera Controls** (5 tools) - Position, presets, animation
 - **Hierarchy Management** (6 tools) - Spawn, destroy, transform objects
 - **Physics Control** (5 tools) - Rapier integration for physics
+- **Asset Processing** (3 tools) - Analysis, validation, optimization
+- **Svelte Generation** (1 tool) - Auto-generate Threlte components
 - **Materials & Assets** (4 tools) - Material application, GLTF loading
 - **Vibe Presets** (1 tool) - Mood-based scene styling
+- **Utilities** (1 tool) - Bridge status
 
-**Total:** 20 tools
+**Total:** 30 tools
+
+### 🏆 Completed Phases
+- ✅ **Phase 1**: Advanced Asset Processing (v1.1.0)
+- ✅ **Phase 2**: Camera & View Controls (v1.2.0 - v1.3.0)
 
 ---
 
@@ -23,7 +31,7 @@ Based on analysis of:
 
 ---
 
-## Phase 1: Advanced Asset Processing (Priority: HIGH)
+## ✅ Phase 1: Advanced Asset Processing (COMPLETED in v1.1.0)
 
 ### From: MCP Three + 3D Asset Processing MCP
 
@@ -81,7 +89,7 @@ Based on analysis of:
 
 ---
 
-## Phase 2: Camera & View Controls (Priority: HIGH)
+## ✅ Phase 2: Camera & View Controls (COMPLETED in v1.2.0 - v1.3.0)
 
 ### Gap Analysis
 Current: No camera manipulation tools
