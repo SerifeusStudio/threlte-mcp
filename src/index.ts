@@ -462,7 +462,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const server = new Server(
     {
         name: 'threlte-mcp',
-        version: '1.3.0',
+        version: '1.4.0',
     },
     {
         capabilities: {
@@ -491,7 +491,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 content: [
                     {
                         type: 'text',
-                        text: `❌ Failed to connect to game. Make sure:\n1. Game is running (npm run dev)\n2. MCP bridge is enabled (localStorage.setItem("MCP_ENABLED", "true") in browser console)\n3. Refresh the page after enabling`,
+                        text: `❌ Failed to connect to game. Make sure:\n1. Game is running (npm run dev)\n2. MCPBridge is added to your scene (auto-connects in dev mode)\n3. For production: Set VITE_MCP_ENABLED=true in .env file`,
                     },
                 ],
                 isError: true,

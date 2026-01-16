@@ -38,54 +38,88 @@ npm install threlte-mcp
 
 ## Quick Start
 
-### 1. Add the MCP server to your AI tool configuration
+### 1. Install the package
+
+```bash
+npm install threlte-mcp
+```
+
+### 2. Configure your IDE (one-time setup)
+
+```bash
+npx threlte-mcp setup
+```
+
+This auto-detects your IDE (Antigravity, Cursor, Claude Desktop) and creates the MCP config.
+
+### 3. Add the component to your Threlte app
+
+Requires Svelte 5 for the MCPBridge component.
+
+```svelte
+<script>
+  import { MCPBridgeComponent } from 'threlte-mcp/client';
+</script>
+
+<!-- Add inside your <Canvas> -->
+<MCPBridgeComponent />
+```
+
+**That's it!** The AI can now inspect and manipulate your scene.
+
+---
+
+<details>
+<summary>📋 Manual Configuration (Alternative)</summary>
+
+If `npx threlte-mcp setup` doesn't work for your IDE, manually add to your config:
 
 ```json
 {
   "mcpServers": {
-    "threlte": {
+    "threlte-mcp": {
       "command": "npx",
-      "args": ["threlte-mcp"]
+      "args": ["-y", "threlte-mcp"]
     }
   }
 }
 ```
 
-### 2. Add MCPBridge to your Threlte app
+Config file locations:
+- **Antigravity**: `~/.gemini/antigravity/mcp_config.json`
+- **Cursor**: `~/.cursor/mcp.json`
+- **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac)
 
-**Option A: Global Singleton (Recommended for production)**
+</details>
 
-Create `src/lib/utils/MCPBridge.ts` - [See full implementation](./client/MCPBridge.example.ts)
+<details>
+<summary>🔧 Advanced: TypeScript API</summary>
 
 ```typescript
-// Simplified singleton pattern
-let globalBridge: MCPBridge | null = null;
+import { MCPBridge } from 'threlte-mcp/client';
+import { useThrelte } from '@threlte/core';
 
-export function getMCPBridge(scene?: THREE.Scene): MCPBridge | null {
-  if (scene && !globalBridge) {
-    globalBridge = new MCPBridge(scene);
-  } else if (scene && globalBridge) {
-    globalBridge.setScene(scene);
-  }
-  return globalBridge;
-}
+const { scene } = useThrelte();
+
+// Create bridge (auto-connects in dev mode)
+const bridge = new MCPBridge(scene, {
+  url: 'ws://127.0.0.1:8082',  // default
+  autoConnect: true,           // default in dev
+  reconnectDelay: 60000,       // 1 minute
+});
+
+// In render loop
+bridge.update();
+
+// Get scene state
+bridge.getSceneState();
+
+// Find objects
+bridge.findObjects({ nameContains: 'player' });
 ```
 
-Then in any scene:
+</details>
 
-```svelte
-<script lang="ts">
-  import { onMount } from 'svelte';
-  import { useThrelte } from '@threlte/core';
-  import { getMCPBridge } from '$lib/utils/MCPBridge';
-
-  const { scene } = useThrelte();
-
-  onMount(() => {
-    getMCPBridge(scene); // Automatically connects to MCP
-  });
-</script>
-```
 
 **Option B: Per-Scene (Simple for prototyping)**
 
@@ -230,7 +264,25 @@ Once both the MCP server and your Threlte app are running, AI agents can:
 
 ## Configuration
 
+### WebSocket Connection
+
 The server uses port 8082 by default for WebSocket communication.
+
+### Environment Variables
+
+The MCPBridge auto-connects in development mode. For production, you can enable it via environment variable:
+
+```bash
+# Add to .env file:
+VITE_MCP_ENABLED=true
+```
+
+This is useful for:
+- Testing in production builds
+- Demo environments
+- Debugging production issues
+
+**Note:** Auto-enabled in development mode (`npm run dev`), no configuration needed.
 
 ## Development
 

@@ -37,97 +37,102 @@ This document demonstrates threlte-mcp capabilities using **Paper Pet Island** a
 // Results will show matching objects
 ```
 
-### Get Specific Object Position
+### Log Positions for Code
 
-**Prompt**: "Where is the PlayerHouse positioned?"
+**Prompt**: "Give me the position of all landmarks so I can copy them into the config file"
 
-**Tool**: `get_object_position`
+**Tool**: `log_positions`
 
-```json
-// Returns exact coordinates
+```
+landmark_windmill: [12, 0, -5]
+landmark_fountain: [0, 0, 0]
+...
 ```
 
 ---
 
-## 🏗️ Use Case 2: Rapid Prototyping
+## 🏗️ Use Case 2: Asset Pipeline & Health
 
-**Scenario**: Test object placement and scene composition without touching code.
+**Scenario**: Analyze and validate 3D models before adding them to the game to prevent performance issues.
 
-### Spawn Test Objects
+### Analyze GLB Stats
 
-**Prompt**: "Create a red sphere at position [0, 5, 0] called 'TestMarker'"
+**Prompt**: "Check if 'house_v2.glb' is optimized enough for mobile"
 
-**Tool**: `spawn_entity`
-
-```
-✅ Spawned "TestMarker" (sphere) at [0, 5, 0]
-```
-
-### Move Objects in Real-Time
-
-**Prompt**: "Move 'TestMarker' to [2, 3, -5]"
-
-**Tool**: `move_object`
-
-```
-✅ Moved "TestMarker" from [0, 5, 0] to [2, 3, -5]
-```
-
-### Clone for Patterns
-
-**Prompt**: "Duplicate 'TestMarker' as 'TestMarker2' with offset [3, 0, 0]"
-
-**Tool**: `duplicate_entity`
-
-```
-✅ Created "TestMarker2" at offset [3, 0, 0] from "TestMarker"
-```
-
-### Clean Up
-
-**Prompt**: "Remove 'TestMarker' and 'TestMarker2'"
-
-**Tool**: `destroy_entity`
-
-```
-✅ Destroyed "TestMarker"
-✅ Destroyed "TestMarker2"
-```
-
----
-
-## 🎥 Use Case 3: Camera Choreography
-
-**Scenario**: Find perfect camera angles for screenshots, trailers, or cutscenes.
-
-### Get Current Camera State
-
-**Prompt**: "What's the current camera position?"
-
-**Tool**: `get_camera_state`
+**Tool**: `analyze_gltf`
 
 ```json
 {
-  "position": [x, y, z],
-  "rotation": [rx, ry, rz],
-  "lookAt": [lx, ly, lz],
-  "fov": 60
+  "summary": {
+    "drawCalls": 18,
+    "estimatedTriangles": 12500,
+    "materials": 4,
+    "textures": 2
+  }
 }
 ```
 
-### Set Up Cinematic View
+### Optimize Assets
 
-**Prompt**: "Move the camera to [10, 8, 10] looking at [0, 0, 0]"
+**Prompt**: "Optimize 'huge_fountain.glb' to reduce file size"
 
-**Tool**: `set_camera_position`
+**Tool**: `optimize_gltf`
 
 ```
-✅ Teleported camera to [10, 8, 10] looking at [0, 0, 0]
+✅ Optimized "huge_fountain.glb" -> "huge_fountain_opt.glb"
+   - Saved: 1.2MB (45%)
+   - Actions: dedup, quantize, textureCompress
+```
+
+### Generate Svelte Components
+
+**Prompt**: "Create a Threlte component for the optimized fountain"
+
+**Tool**: `export_to_svelte`
+
+```
+✅ Generated "Fountain.svelte"
 ```
 
 ---
 
-## 🎨 Use Case 4: Vibe Check
+## 🎥 Use Case 3: Cinematic Camera Control
+
+**Scenario**: Find perfect camera angles and create cinematic sequences for trailers or tutorials.
+
+### Save Perfect Angles
+
+**Prompt**: "Save this view as 'overview'"
+
+**Tool**: `save_camera_preset`
+
+```
+✅ Saved camera preset "overview"
+```
+
+### Switch Views Instantly
+
+**Prompt**: "Show me the 'closeup' view"
+
+**Tool**: `load_camera_preset`
+
+```
+✅ Loaded camera preset "closeup"
+```
+
+### Create Animated Sequence
+
+**Prompt**: "Fly the camera from 'start' to 'overview' to 'closeup' over 5 seconds"
+
+**Tool**: `animate_camera_presets`
+
+```
+✅ Animated camera through 3 preset(s)
+```
+
+---
+
+## 🎨 Use Case 4: Vibe Check & Environment
 
 **Scenario**: Quickly test different visual moods and atmospheres.
 
@@ -155,16 +160,6 @@ Available vibes: `cozy`, `spooky`, `neon`, `retro`, `minimal`, `chaos`
 
 Available environments: `sunset`, `dawn`, `night`, `warehouse`, `forest`, `apartment`, `studio`, `city`, `park`, `lobby`
 
-### Add Atmospheric Lighting
-
-**Prompt**: "Add a blue point light at [0, 5, 0] with intensity 2"
-
-**Tool**: `add_light`
-
-```
-✅ Added point light at [0, 5, 0]
-```
-
 ---
 
 ## ⚡ Use Case 5: Physics Playground
@@ -181,9 +176,6 @@ Available environments: `sunset`, `dawn`, `night`, `warehouse`, `forest`, `apart
 ✅ Added dynamic physics body to "TestCube"
 ```
 
-Body types: `dynamic`, `kinematic`, `static`
-Collider types: `cuboid`, `ball`, `hull`, `trimesh`, `auto`
-
 ### Apply Force
 
 **Prompt**: "Push 'TestCube' upward with impulse [0, 10, 0]"
@@ -194,36 +186,15 @@ Collider types: `cuboid`, `ball`, `hull`, `trimesh`, `auto`
 ✅ Applied impulse [0, 10, 0] to "TestCube"
 ```
 
-### Change Gravity
-
-**Prompt**: "Set gravity to moon-like at [0, -1.6, 0]"
-
-**Tool**: `set_gravity`
-
-```
-✅ Set gravity to [0, -1.6, 0]
-```
-
 ---
 
 ## 📋 Quick Reference
 
 | Category | Tools |
 |----------|-------|
-| **Inspect** | `get_scene_state`, `find_objects`, `get_object_position`, `log_positions` |
-| **Create** | `spawn_entity`, `duplicate_entity`, `load_asset` |
-| **Transform** | `move_object`, `set_transform`, `set_visibility` |
-| **Camera** | `get_camera_state`, `set_camera_position`, `look_at` |
-| **Visual** | `apply_vibe`, `set_environment`, `add_light`, `apply_material` |
+| **Inspect** | `get_scene_state`, `find_objects`, `log_positions`, `get_bridge_status` |
+| **Assets** | `analyze_gltf`, `optimize_gltf`, `export_to_svelte`, `load_asset` |
+| **Camera** | `set_camera_position`, `save_camera_preset`, `load_camera_preset`, `animate_camera_presets` |
+| **Manipulate** | `spawn_entity`, `move_object`, `set_transform`, `visibility` |
+| **Visual** | `apply_vibe`, `set_environment`, `apply_material` |
 | **Physics** | `make_physical`, `apply_impulse`, `set_gravity` |
-
----
-
-## 🚀 Getting Started
-
-1. Install threlte-mcp in your AI tool
-2. Add MCPBridge to your Threlte app
-3. Start your dev server
-4. Ask your AI to "get the scene state" to verify connection
-
-See [README.md](./README.md) for full installation instructions.

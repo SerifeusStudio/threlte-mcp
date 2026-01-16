@@ -90,7 +90,7 @@ export class BridgeServer {
     private commandTimeout: number;
 
     constructor(options: BridgeServerOptions = {}) {
-        this.port = options.port ?? 8082;
+        this.port = options.port ?? 8083;
         this.commandTimeout = options.commandTimeout ?? 5000;
         this.startServer();
     }
