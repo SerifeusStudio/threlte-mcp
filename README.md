@@ -20,15 +20,15 @@ An MCP (Model Context Protocol) server that enables AI agents to inspect and man
 
 ## Features
 
-- 🔍 **Scene Inspection** - View the full 3D scene hierarchy, find objects by name/type
-- 🎯 **Object Manipulation** - Move, rotate, scale, show/hide objects
-- 🎨 **Materials & Assets** - Apply materials, load GLTF models, change environment
-- 🧪 **Asset Analysis** - Inspect GLTF structure and validate performance
-- dYZ+ **Asset Optimization** - Simplify meshes, compress textures, prune unused data
-- dY"? **Svelte Export** - Generate Threlte/Svelte components from GLTF
-- dYZ? **Camera Presets** - Save, load, and animate camera views
-- ⚡ **Physics Control** - Add physics bodies, apply impulses, set gravity
-- 🎭 **Vibe Presets** - Apply mood presets (cozy, spooky, neon, etc.)
+-  **Scene Inspection** - View the full 3D scene hierarchy, find objects by name/type
+-  **Object Manipulation** - Move, rotate, scale, show/hide objects
+-  **Materials & Assets** - Apply materials, load GLTF models, change environment
+-  **Asset Analysis** - Inspect GLTF structure and validate performance
+-  **Asset Optimization** - Simplify meshes, compress textures, prune unused data
+-  **Svelte Export** - Generate Threlte/Svelte components from GLTF
+-  **Camera Presets** - Save, load, and animate camera views
+-  **Physics Control** - Add physics bodies, apply impulses, set gravity
+-  **Vibe Presets** - Apply mood presets (cozy, spooky, neon, etc.)
 
 ## Installation
 
@@ -304,3 +304,4 @@ npm run build
 ## License
 
 MIT © Raul Contreras
+
