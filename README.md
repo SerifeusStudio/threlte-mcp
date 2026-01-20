@@ -1,8 +1,10 @@
 # Threlte MCP
 
 [![npm version](https://img.shields.io/npm/v/threlte-mcp.svg)](https://www.npmjs.com/package/threlte-mcp)
+[![npm downloads](https://img.shields.io/npm/dt/threlte-mcp.svg)](https://www.npmjs.com/package/threlte-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-blue.svg)](https://modelcontextprotocol.io/)
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-5A67D8?logo=anthropic)](https://claude.ai)
 
 An MCP (Model Context Protocol) server that enables AI agents to inspect and manipulate Three.js/Threlte scenes in real-time.
 
@@ -301,6 +303,27 @@ npm run dev
 npm run build
 ```
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## License
 
 MIT © Raul Contreras
+
+## Links
+
+- [npm Package](https://www.npmjs.com/package/threlte-mcp)
+- [GitHub Repository](https://github.com/RaulContreras123/threlte-mcp)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Threlte Documentation](https://threlte.xyz/)
+
+---
+
+**Built with [Claude](https://claude.ai) 🤖**

@@ -16,8 +16,12 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/RaulContreras123/threlte-mcp.git"
+        "url": "git+https://github.com/RaulContreras123/threlte-mcp.git"
     },
+    "bugs": {
+        "url": "https://github.com/RaulContreras123/threlte-mcp/issues"
+    },
+    "homepage": "https://github.com/RaulContreras123/threlte-mcp#readme",
     "type": "module",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
